@@ -79,23 +79,29 @@ generic_name_remover <- function(df, col="facility_name")
 
 
 # Subsetting
-base_5 <- subset(base_line, X_lga_id == 470 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_5 <- subset(facility_list, lga_id == 470 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
+base_5 <- subset(base_line, X_lga_id == 570 ,select=c("ward","community",  "facility_name", "facility_type"))
+faci_5 <- subset(facility_list, lga_id == 570 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
                                                       "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
 
 names(faci_5) <- names(base_5)
-
-write.csv(base_5, "../../temp/base.csv", row.names=F)
-write.csv(faci_5, "../../temp/faci.csv", row.names=F)
-
-
-names(faci_5) <- names(base_5)
+row.names(base_5) <- NULL
+row.names(faci_5) <- NULL
+write.csv(base_5, "../../temp/base.csv", row.names=T)
+write.csv(faci_5, "../../temp/faci.csv", row.names=T)
 
 base_5 <- generic_name_remover(base_5)
 faci_5 <- generic_name_remover(faci_5)
 
+#standardize the ward fields
+str_replace(str_replace(base_5$ward, pattern=" ", ""),
+            pattern=ignore.case("ward"), "")
+test <- str_extract(faci_5$ward, "[0-9]+")
+test
 
-rpairs <- compare.linkage(base_5, faci_5, blockfld=4, strcmp = 1:3, strcmpfun = jarowinkler)
+rpairs <- compare.linkage(base_5, faci_5, blockfld=c(1,4), strcmp = 2:3, strcmpfun = jarowinkler)
+train_data_5 <- rpairs[[3]]
+
+# rpairs <- compare.linkage(base_5, faci_5, blockfld=4, strcmp = 1:3, strcmpfun = jarowinkler)
 # rpairs <- compare.linkage(base_5, faci_5, blockfld=4, phonetic = 1:3, phonfun = pho_h, )
 
 #Sol 1. EM weight
