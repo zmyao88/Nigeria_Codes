@@ -301,8 +301,12 @@ ggplot(combined_total, aes(x=facility_name, y = community, color = factor(match)
     geom_point(aes(shape = factor(match), size = 0.5 * match)) + 
     scale_color_manual(values = cbbPalette)
 
-    
-scale_colour_manual(values=cbPalette)
-    
-geom_point(position = "jitter")
+open3d()
+x <- combined_total$ward
+y <- combined_total$facility_name
+z <- combined_total$community
+color_match <- combined_total$match + 1
+
+plot3d(x=x,y=y,z=z, col = color_match, type='s', size=0.5)
+rgl.close()
 
