@@ -6,18 +6,19 @@ pairs_dist_1 <- function(dataset1, dataset2)
     
     left = dataset1[pair_ids[, 1], , drop = FALSE]
     right = dataset2[pair_ids[, 2], , drop = FALSE]
-    patterns = matrix(0, ncol = ncol(left), nrow = nrow(left))
+    patterns = matrix(0, ncol = ncol(left) , nrow = nrow(left))
     
     
-    patterns[, 1] <- left$ward == right$ward
-    patterns[, 2] <- jarowinkler(as.character(left$community), as.character(right$community))
-    patterns[, 3] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
-    patterns[, 5] <- jarowinkler(as.character(left$unique_name), as.character(right$unique_name))
-    patterns[, 4] <- ifelse(left$facility_type == right$facility_type, 1,
+    patterns[, 1] <- left$X_lga_id
+    patterns[, 2] <- left$ward == right$ward
+    patterns[, 3] <- jarowinkler(as.character(left$community), as.character(right$community))
+    patterns[, 4] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
+    patterns[, 6] <- jarowinkler(as.character(left$unique_name), as.character(right$unique_name))
+    patterns[, 5] <- ifelse(left$facility_type == right$facility_type, 1,
                             ifelse(left$facility_type %in% c("primaryhealthcarecentre", "primaryhealthclinic") & 
                                        right$facility_type %in% c("primaryhealthcarecentre", "primaryhealthclinic"), 0.5, 0))
     pair_score <- cbind(pair_ids, patterns)
-    names(pair_score) <- c("id1", "id2", "ward", "community", "facility_name", "facility_type", "unique_name")
+    names(pair_score) <- c("id1", "id2", "X_lga_id", "ward", "community", "facility_name", "facility_type", "unique_name")
     #     rm(list=c("left", "right", "patterns"))
     return(pair_score)
 }
@@ -30,18 +31,18 @@ pairs_dist_2 <- function(dataset1, dataset2)
     
     left = dataset1[pair_ids[, 1], , drop = FALSE]
     right = dataset2[pair_ids[, 2], , drop = FALSE]
-    patterns = matrix(0, ncol = ncol(left), nrow = nrow(left))
+    patterns = matrix(0, ncol = ncol(left) , nrow = nrow(left))
     
-    
-    patterns[, 1] <- jarowinkler(as.character(left$ward), as.character(right$ward))
-    patterns[, 2] <- jarowinkler(as.character(left$community), as.character(right$community))
-    patterns[, 3] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
-    patterns[, 5] <- jarowinkler(as.character(left$unique_name), as.character(right$unique_name))
-    patterns[, 4] <- ifelse(left$facility_type == right$facility_type, 1,
+    patterns[, 1] <- left$X_lga_id
+    patterns[, 2] <- jarowinkler(as.character(left$ward), as.character(right$ward))
+    patterns[, 3] <- jarowinkler(as.character(left$community), as.character(right$community))
+    patterns[, 4] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
+    patterns[, 6] <- jarowinkler(as.character(left$unique_name), as.character(right$unique_name))
+    patterns[, 5] <- ifelse(left$facility_type == right$facility_type, 1,
                             ifelse(left$facility_type %in% c("primaryhealthcarecentre", "primaryhealthclinic") & 
                                        right$facility_type %in% c("primaryhealthcarecentre", "primaryhealthclinic"), 0.5, 0))
     pair_score <- cbind(pair_ids, patterns)
-    names(pair_score) <- c("id1", "id2", "ward", "community", "facility_name", "facility_type", "unique_name")
+    names(pair_score) <- c("id1", "id2", "X_lga_id", "ward", "community", "facility_name", "facility_type", "unique_name")
     #     rm(list=c("left", "right", "patterns"))
     return(pair_score)
 }
@@ -65,6 +66,22 @@ fill_match <- function(df, id_1, id_2)
 }
 
 
+generic_name_remover <- function(df)
+{
+    #     df[,col] <- str_replace_all(df[,col], ignore.case("Centre"), "")
+    #     df[,col] <- str_replace_all(df[,col], ignore.case("Center"), "")
+    # #     df[,col] <- str_replace_all(df[,col], ignore.case("primary"), "")
+    #     df[,col] <- str_replace_all(df[,col], ignore.case("hospital"), "")
+    #     df[,col] <- str_replace_all(df[,col], ignore.case("CLINIC"), "")
+    #     df[,col] <- str_replace_all(df[,col], '[:punct:]', " ")
+    df <- str_replace_all(df, ignore.case('health|clinic|center|centre|hospital|BASIC|Comprehensive|General|Model|POST|primary|care'), "")
+    df <- str_replace_all(df, ignore.case('^(P|B|)HC|^HC.'), "")
+    df <- str_replace_all(df, ignore.case('^(P|B|).H.(C.|Clinic.|center.|centre|C.(C.|Clinic.|center.|centre.))'), "")
+    df <- str_replace_all(df, ignore.case('(P.H.C)|PHC'), "")
+    df <- str_replace_all(df, " ", "")
+    return(df)
+}
+
 
 ## PUll the raw data & simple cleaning
 facility_list <- read.csv("../../FACILITY_LIST_hospitals.csv")
@@ -78,13 +95,20 @@ base_line$facility_type <- str_replace(base_line$facility_type, pattern="healthp
 base_line$facility_type <- str_replace(base_line$facility_type, pattern="federalmedicalcare", replacement="federalmedicalcentre")
 
 
+
+base_line <- subset(base_line, select=c("X_lga_id", "ward","community",  "facility_name", "facility_type"))
+facility_list <- subset(facility_list, select=c("lga_id", "HealthFacilities.ward_name","HealthFacilities.com_name_h",  
+                                                          "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
+names(facility_list) <- names(base_line)
+
+
+
+
 # Subsetting
 ###############LGA == 570
 
-base_570 <- subset(base_line, X_lga_id == 570 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_570 <- subset(facility_list, lga_id == 570 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                        "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
-names(faci_570) <- names(base_570)
+base_570 <- subset(base_line, X_lga_id == 570)
+faci_570 <- subset(facility_list, X_lga_id == 570)
 base_570$unique_name <- generic_name_remover(base_570$facility_name)
 faci_570$unique_name <- generic_name_remover(faci_570$facility_name)
 
@@ -119,10 +143,9 @@ final_570 <- fill_match(df=final_570, id1, id2)
 
 which(final_570$match == 1 )
 ################################ LGA==5
-base_5 <- subset(base_line, X_lga_id == 5 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_5 <- subset(facility_list, lga_id == 5 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                          "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
-names(faci_5) <- names(base_5)
+base_5 <- subset(base_line, X_lga_id == 5)
+faci_5 <- subset(facility_list, X_lga_id == 5)
+
 
 base_5$unique_name <- generic_name_remover(base_5$facility_name)
 faci_5$unique_name <- generic_name_remover(faci_5$facility_name)
@@ -166,9 +189,8 @@ for (i in 1: 4)
 
 ################################ LGA==120
 
-base_120 <- subset(base_line, X_lga_id == 120 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_120 <- subset(facility_list, lga_id == 120 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                      "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
+base_120 <- subset(base_line, X_lga_id == 120)
+faci_120 <- subset(facility_list, X_lga_id == 120)
 names(faci_120) <- names(base_120)
 base_120$unique_name <- generic_name_remover(base_120$facility_name)
 faci_120$unique_name <- generic_name_remover(faci_120$facility_name)
@@ -211,10 +233,9 @@ for (i in 1: 6)
 
 ################################ LGA==30
 
-base_30 <- subset(base_line, X_lga_id == 30 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_30 <- subset(facility_list, lga_id == 30 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                          "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
-names(faci_30) <- names(base_30)
+base_30 <- subset(base_line, X_lga_id == 30)
+faci_30 <- subset(facility_list, X_lga_id == 30)
+
 base_30$unique_name <- generic_name_remover(base_30$facility_name)
 faci_30$unique_name <- generic_name_remover(faci_30$facility_name)
 
@@ -258,10 +279,9 @@ for (i in 1: 15)
 }
 
 ##########################################360
-base_360 <- subset(base_line, X_lga_id == 360 ,select=c("ward","community",  "facility_name", "facility_type"))
-faci_360 <- subset(facility_list, lga_id == 360 ,select=c("HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                        "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
-names(faci_360) <- names(base_360)
+base_360 <- subset(base_line, X_lga_id == 360)
+faci_360 <- subset(facility_list, X_lga_id == 360)
+
 base_360$unique_name <- generic_name_remover(base_360$facility_name)
 faci_360$unique_name <- generic_name_remover(faci_360$facility_name)
 
@@ -316,16 +336,47 @@ sum(combined_total$match == 1)
 ggplot(combined_total, aes(x=ward, y = match)) + geom_point(position = "jitter")
 
 cbbPalette <- c("#000000", "#FF0000")
-ggplot(combined_total, aes(x=ward, y = facility_name, color = factor(match))) + 
+ggplot(combined_total, aes(x=community, y = facility_name, color = factor(match))) + 
     geom_point(aes(shape = factor(match), size = 0.5 * match)) + 
     scale_color_manual(values = cbbPalette)
 
 open3d()
-x <- combined_total$unique_name
+x <- combined_total$facility_name
 y <- combined_total$ward
 z <- combined_total$community
 color_match <- combined_total$match + 1
 
-plot3d(x=x,y=y,z=z, xlab="x", ylab="y", zlab="z",col = color_match, type='s', size=0.5)
+plot3d(x=x,y=y,z=z, xlab="Facility_Name", ylab="Ward", zlab="Comunity",col = color_match, type='s', size=0.5)
 rgl.close()
 
+
+train_df <- na.omit(combined_total)
+exp <- as.matrix(train_df[,3:7])
+resp <- as.matrix(train_df[,8])
+
+model_1 <- cv.glmnet(x=exp, y=resp, family='binomial')
+pred <- predict(model_1, exp)
+plot(pred)
+
+model_2 <- glm(factor(match) ~ ward + community + facility_name +
+                   facility_type, family=binomial, data=combined_total)
+summary(model_2)
+confint(model_2)
+confint.default(model_2)
+logLik(model_2)
+
+plot(model_2$fitted.values)
+combined_total$fitted <- model_2$fitted.values
+pred <- predict(model_2, combined_total)
+
+train_df$fitted <- model_2$fitted.values
+ggplot(train_df, aes(x=facility_name, y = fitted, color = factor(match))) + 
+    geom_point(aes(shape = factor(match), size = 0.5 * match), position ="jitter") + 
+    scale_color_manual(values = cbbPalette)
+sum(train_df$match == 1)
+sum(train_df$fitted > 0.5)
+sum(train_df$fitted > 0.5 & train_df$match == 1)
+sum(train_df$facility_name > 0.75)
+sum(combined_total$facility_name > 0.75 & combined_total$match == 1)
+sum(train_df$unique_name > 0.75)
+sum(combined_total$unique_name > 0.75 & combined_total$match == 1)
