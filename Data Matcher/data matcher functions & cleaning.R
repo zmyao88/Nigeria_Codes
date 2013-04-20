@@ -9,7 +9,7 @@ pairs_dist_1 <- function(dataset1, dataset2)
     patterns = matrix(0, ncol = ncol(left) , nrow = nrow(left))
     
     
-    patterns[, 1] <- left$X_lga_id
+    patterns[, 1] <- as.numeric(left$X_lga_id)
     patterns[, 2] <- left$ward == right$ward
     patterns[, 3] <- jarowinkler(as.character(left$community), as.character(right$community))
     patterns[, 4] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
@@ -33,7 +33,7 @@ pairs_dist_2 <- function(dataset1, dataset2)
     right = dataset2[pair_ids[, 2], , drop = FALSE]
     patterns = matrix(0, ncol = ncol(left) , nrow = nrow(left))
     
-    patterns[, 1] <- left$X_lga_id
+    patterns[, 1] <- as.numeric(left$X_lga_id)
     patterns[, 2] <- jarowinkler(as.character(left$ward), as.character(right$ward))
     patterns[, 3] <- jarowinkler(as.character(left$community), as.character(right$community))
     patterns[, 4] <- jarowinkler(as.character(left$facility_name), as.character(right$facility_name))
@@ -330,7 +330,7 @@ for (i in 1: 20)
 
 #####
 
-combined_total <- rbind(final_5, final_30, final_120, final_570, final_360)
+combined_total <- rbind(final_5, final_30, final_120, final_570)
 sum(combined_total$match == 1)
 
 ggplot(combined_total, aes(x=ward, y = match)) + geom_point(position = "jitter")
@@ -354,29 +354,84 @@ train_df <- na.omit(combined_total)
 exp <- as.matrix(train_df[,3:7])
 resp <- as.matrix(train_df[,8])
 
-model_1 <- cv.glmnet(x=exp, y=resp, family='binomial')
-pred <- predict(model_1, exp)
-plot(pred)
+# model_1 <- cv.glmnet(x=exp, y=resp, family='binomial')
+# pred <- predict(model_1, exp)
+# plot(pred)
 
 model_2 <- glm(factor(match) ~ ward + community + facility_name +
-                   facility_type, family=binomial, data=combined_total)
+                   facility_type, family=binomial, data=train_df)
 summary(model_2)
 confint(model_2)
 confint.default(model_2)
 logLik(model_2)
 
 plot(model_2$fitted.values)
-combined_total$fitted <- model_2$fitted.values
-pred <- predict(model_2, combined_total)
+train_df$fitted <- model_2$fitted.values
+pred <- predict(model_2, final_360,type="response")
 
 train_df$fitted <- model_2$fitted.values
 ggplot(train_df, aes(x=facility_name, y = fitted, color = factor(match))) + 
     geom_point(aes(shape = factor(match), size = 0.5 * match), position ="jitter") + 
-    scale_color_manual(values = cbbPalette)
+    scale_color_manual(values = cbbPalette) +
+    geom_hline(yintercept= 0.09)
+
 sum(train_df$match == 1)
-sum(train_df$fitted > 0.5)
-sum(train_df$fitted > 0.5 & train_df$match == 1)
+sum(train_df$fitted > 0.09)
+sum(train_df$fitted > 0.09 & train_df$match == 1)
+
+final_360$fitted <- pred
+length(which(final_360$fitted > 0.07))
+length(which(final_360$match == 1))
+length(which(final_360$match == 1 & final_360$fitted > 0.06))
+
+sum(final_360$fitted > 0.09 & train_df$match == 1)
+
+
+
+train_df[which(train_df$fitted < 0.12 & train_df$match ==1),]
+
+test <- arrange(train_df, desc(fitted))
+test2 <- arrange(final_360, desc(fitted))
+length(which(test2$match ==1))
+test3 <- arrange(final_360, id1, desc(fitted))
+test3$order <- rep(1:42,40)
+
+
 sum(train_df$facility_name > 0.75)
 sum(combined_total$facility_name > 0.75 & combined_total$match == 1)
 sum(train_df$unique_name > 0.75)
 sum(combined_total$unique_name > 0.75 & combined_total$match == 1)
+
+unique(test3$id1)
+
+sum <- 0
+for (i in 0:39)
+{
+    k <- 1
+    for(j in 1:42)
+    {
+        sum <- sum + 1
+        if(test3$match[i*42+j] == 1)
+        {
+            print(paste(i, j, i*42+j,sep="***"))
+            break
+        }
+        
+    }
+}
+count_pt1 <- test3[which(test3$match == 1),c("id1", "order")]
+count <- matrix(nrow=40,ncol=2)
+count[,1] <- 1:40
+
+for (i in 1:40)
+{
+    if (i %in% count_pt1$id1)
+    {
+        count[i,2] <- count_pt1[count_pt1$id1 == i, 2]
+    }else
+    {
+        count[i,2] <- (42 - sum((1:(i-1) %in% count_pt1$id1)))
+    }
+}
+sum(count[,2])
+length(which(test3$match == 1))

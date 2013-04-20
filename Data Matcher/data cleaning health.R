@@ -87,7 +87,8 @@ x <-x[!is.na(x)]
 y <- str_replace(x, "^0+", "")
 
 
-
+## character to numeric convert
+sum(is.na(as.numeric(test)))/
 
 
 write.csv(test, "../../Data Matcher/community_missing.csv")
