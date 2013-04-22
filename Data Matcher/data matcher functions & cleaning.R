@@ -328,11 +328,13 @@ for (i in 1: 20)
 
 
 
-#####
+##### Combine the data
 
 combined_total <- rbind(final_5, final_30, final_120, final_570)
 sum(combined_total$match == 1)
 
+
+#### simple visualization
 ggplot(combined_total, aes(x=ward, y = match)) + geom_point(position = "jitter")
 
 cbbPalette <- c("#000000", "#FF0000")
@@ -350,7 +352,9 @@ plot3d(x=x,y=y,z=z, xlab="Facility_Name", ylab="Ward", zlab="Comunity",col = col
 rgl.close()
 
 
-train_df <- na.omit(combined_total)
+
+#### Training logistic regression based on 4 lgas and validata on 1 lga
+train_df <-(combined_total)
 exp <- as.matrix(train_df[,3:7])
 resp <- as.matrix(train_df[,8])
 
@@ -359,38 +363,45 @@ resp <- as.matrix(train_df[,8])
 # plot(pred)
 
 model_2 <- glm(factor(match) ~ ward + community + facility_name +
-                   facility_type, family=binomial, data=train_df)
+                   facility_type, family=binomial, data=combined_total)
 summary(model_2)
 confint(model_2)
 confint.default(model_2)
 logLik(model_2)
 
 plot(model_2$fitted.values)
-train_df$fitted <- model_2$fitted.values
+train_df$fitted <- predict(model_2, combined_total, type="response")
 pred <- predict(model_2, final_360,type="response")
 
-train_df$fitted <- model_2$fitted.values
+
 ggplot(train_df, aes(x=facility_name, y = fitted, color = factor(match))) + 
     geom_point(aes(shape = factor(match), size = 0.5 * match), position ="jitter") + 
     scale_color_manual(values = cbbPalette) +
     geom_hline(yintercept= 0.09)
 
 sum(train_df$match == 1)
-sum(train_df$fitted > 0.09)
-sum(train_df$fitted > 0.09 & train_df$match == 1)
+length(which(train_df$fitted > 0.09))
+length(which(train_df$fitted > 0.09 & train_df$match == 1))
 
 final_360$fitted <- pred
 length(which(final_360$fitted > 0.07))
 length(which(final_360$match == 1))
 length(which(final_360$match == 1 & final_360$fitted > 0.06))
 
-sum(final_360$fitted > 0.09 & train_df$match == 1)
+
 
 
 
 train_df[which(train_df$fitted < 0.12 & train_df$match ==1),]
 
-test <- arrange(train_df, desc(fitted))
+
+
+
+###### Evualtion: counting number of records ta has to go through to find match with recommendation
+test <- arrange(train_df, X_lga_id, id1, desc(fitted))
+test$order <- c(rep(1:9, 10), rep(1:59, 40), rep(1:19, 9), rep(1:37, 29))
+count_test <- test[which(test$match == 1),c("id1", "order")]
+
 test2 <- arrange(final_360, desc(fitted))
 length(which(test2$match ==1))
 test3 <- arrange(final_360, id1, desc(fitted))
