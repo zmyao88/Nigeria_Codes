@@ -371,13 +371,23 @@ logLik(model_2)
 
 plot(model_2$fitted.values)
 train_df$fitted <- predict(model_2, combined_total, type="response")
-pred <- predict(model_2, final_360,type="response")
+final_360$fitted <- predict(model_2, final_360,type="response")
 
 
 ggplot(train_df, aes(x=facility_name, y = fitted, color = factor(match))) + 
     geom_point(aes(shape = factor(match), size = 0.5 * match), position ="jitter") + 
     scale_color_manual(values = cbbPalette) +
     geom_hline(yintercept= 0.09)
+
+
+ggplot(ttt, aes(x=community, y = fitted, color = factor(match))) + 
+    geom_point(aes(shape = factor(match), size = 0.5 * match)) + 
+    scale_color_manual(values = cbbPalette) +
+    geom_hline(yintercept= 0.09) + 
+    labs(title = "cutoff at 0.09 which is very low probability to be honest")
+
+
+
 
 sum(train_df$match == 1)
 length(which(train_df$fitted > 0.09))
@@ -400,20 +410,64 @@ train_df[which(train_df$fitted < 0.12 & train_df$match ==1),]
 ###### Evualtion: counting number of records ta has to go through to find match with recommendation
 test <- arrange(train_df, X_lga_id, id1, desc(fitted))
 test$order <- c(rep(1:9, 10), rep(1:59, 40), rep(1:19, 9), rep(1:37, 29))
-count_test <- test[which(test$match == 1),c("id1", "order")]
+count_test <- test[which(test$match == 1),c("id1", "order", "fitted")]
 
-test2 <- arrange(final_360, desc(fitted))
+test2 <- arrange(final_360, desc(fitted),na.last=T)
 length(which(test2$match ==1))
 test3 <- arrange(final_360, id1, desc(fitted))
 test3$order <- rep(1:42,40)
 
 
-sum(train_df$facility_name > 0.75)
-sum(combined_total$facility_name > 0.75 & combined_total$match == 1)
-sum(train_df$unique_name > 0.75)
-sum(combined_total$unique_name > 0.75 & combined_total$match == 1)
 
-unique(test3$id1)
+count_test3 <- test3[which(test3$match == 1),c("id1", "order", "fitted")]
+count <- rbind(count_test, count_test3)
+count$index <- 1: nrow(count)
+tt <- rbind(test,test3)
+
+length(which(tt$order <= 3 & tt$fitted <= 0.05))
+
+length(which(count$order <= 3 ))
+
+ggplot(count,aes(index, order)) + geom_point() +
+    labs(title="most matched pairs are within the top5 \n the point on top right is due to NA's ")
+
+
+ggplot(count,aes(index, fitted, label=order)) + geom_text() +
+    labs(title="pred_probability of matches and order/rank \n ignore x axis")
+
+
+
+
+length(which(test$order <= 4 & test$match == 1 & test$X_lga_id == 30))
+length(which(test$match == 1 & test$X_lga_id == 30))
+
+p5 <- ggplot(subset(test3, order <= 4),aes(x=id1, y=fitted, color=factor(match), label=order)) +
+    #     geom_point(aes(shape = factor(match))) + 
+    scale_color_manual(values = cbbPalette) +
+    geom_text() +
+    labs(title = "lga_id == 360 \n captured 18 out of 20 matches")+ ylab("Predicted probalility of being matched")
+
+test <- test[test$order <= 4,]
+p1 <- ggplot(subset(test, X_lga_id == 30 & order <= 4),aes(x=id1, y=fitted, color=factor(match), label=order)) +
+#     geom_point(aes(shape = factor(match))) + 
+    scale_color_manual(values = cbbPalette) +
+    geom_text() +
+    labs(title = "lga_id == 30 \n captured 13 out of 15 matches")+ ylab("Predicted probalility of being matched")
+
+
+test[test$order <= 4 & test$match ==1 & test$X_lga_id == 5,]
+test[test$match ==1 & test$X_lga_id == 5,]
+
+
+pdf()
+p1
+p2
+p3
+p4
+p5
+dev.off()
+
+
 
 sum <- 0
 for (i in 0:39)
@@ -431,6 +485,7 @@ for (i in 0:39)
     }
 }
 count_pt1 <- test3[which(test3$match == 1),c("id1", "order")]
+
 count <- matrix(nrow=40,ncol=2)
 count[,1] <- 1:40
 
