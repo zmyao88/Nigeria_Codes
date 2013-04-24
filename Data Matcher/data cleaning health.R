@@ -35,7 +35,10 @@ base_test <- subset(base_line, select=c("X_lga_id" ,"ward","community",  "facili
 names(faci_test)[1:5] <- names(base_test)[1:5]
 
 
-str_replace(faci_test$ward, ignore.case("ward"), "")
+
+
+
+str_replace(facility_list$ward, ignore.case("ward"), "")
 str_extract(faci_test$ward, '[0-9]+')    
 which(str_detect(faci_test$base, ignore.case("ward")))
 
@@ -89,6 +92,11 @@ y <- str_replace(x, "^0+", "")
 
 ## character to numeric convert
 sum(is.na(as.numeric(test)))/
+    
+    
+## pull all the characgters
+    
+sapply(str_extract_all(facility_list$ward[1:5], '[a-zA-Z]'), function(x) paste0(x, collapse=""))
 
 
 write.csv(test, "../../Data Matcher/community_missing.csv")
