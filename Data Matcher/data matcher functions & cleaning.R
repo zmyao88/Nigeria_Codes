@@ -74,20 +74,21 @@ generic_name_remover <- function(df)
     #     df[,col] <- str_replace_all(df[,col], ignore.case("hospital"), "")
     #     df[,col] <- str_replace_all(df[,col], ignore.case("CLINIC"), "")
     #     df[,col] <- str_replace_all(df[,col], '[:punct:]', " ")
-    df <- str_replace_all(df, ignore.case('health|clinic|center|centre|hospital|BASIC|Comprehensive|General|Model|POST|primary|care'), "")
+    df <- str_replace_all(df, ignore.case('health|clinic|center|centre|hospital|BASIC|Comprehensive|General|Model|POST|primary|care|maternity'), "")
     df <- str_replace_all(df, ignore.case('^(P|B|)HC|^HC.'), "")
     df <- str_replace_all(df, ignore.case('^(P|B|).H.(C.|Clinic.|center.|centre|C.(C.|Clinic.|center.|centre.))'), "")
     df <- str_replace_all(df, ignore.case('(P.H.C)|PHC'), "")
-    df <- str_replace_all(df, " ", "")
+    df <- str_replace_all(df, ignore.case('CHC|C.H.c'), "")
+    df <- str_trim(df)
     return(df)
 }
 
 
 ## PUll the raw data & simple cleaning
-facility_list <- read.csv("../../FACILITY_LIST_hospitals.csv")
+facility_list <- read.csv("../../FACILITY_LIST_hospitals.csv", stringsAsFactors = F)
 # table(facility_list$HealthFacilities.health_facility_type)
-one13 <- read.csv("../../../../raw_data/113/Health_PhaseII_RoundI&II&III_Clean_2011.11.16.csv")
-six61 <- read.csv("../../../outlier_cleaned/Health_661_outliercleaned.csv")
+one13 <- read.csv("../../../../raw_data/113/Health_PhaseII_RoundI&II&III_Clean_2011.11.16.csv", stringsAsFactors = F)
+six61 <- read.csv("../../../outlier_cleaned/Health_661_outliercleaned.csv", stringsAsFactors = F)
 base_line <- rbind.fill(six61,one13)
 base_line$facility_type <- str_replace(base_line$facility_type, pattern="wardmodelprimaryhealthcarecentre", replacement="wardmodelphccentre")
 base_line$facility_type <- str_replace(base_line$facility_type, pattern="dispensary", replacement="healthpostdispensary")
@@ -97,8 +98,8 @@ base_line$facility_type <- str_replace(base_line$facility_type, pattern="federal
 
 
 base_line <- subset(base_line, select=c("X_lga_id", "ward","community",  "facility_name", "facility_type"))
-facility_list <- subset(facility_list, select=c("lga_id", "HealthFacilities.ward_name","HealthFacilities.com_name_h",  
-                                                          "HealthFacilities.health_facility_name", "HealthFacilities.health_facility_type"))
+facility_list <- subset(facility_list, select=c("lga_id", "ward_name","com_name_h",  
+                                                          "health_facility_name", "health_facility_type"))
 names(facility_list) <- names(base_line)
 
 

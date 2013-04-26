@@ -45,14 +45,20 @@ which(str_detect(faci_test$base, ignore.case("ward")))
 which(str_detect(base_test$ward, '[0-9]'))
 which()
 
-test <- faci_test[which(is.na(faci_test$community) ), c("X_lga_id", "ward", "ta_name")]
+test <- facility_list[which(is.na(facility_list$community) ), c("X_lga_id", "ward")]
 test$flag <- str_detect(test$ward, '[/,]')
 
-test <- faci_test[which(is.na(faci_test$community) & str_detect(faci_test$ward, '[/,]') ), c("X_lga_id", "ward", "ta_name")]
-test <- arrange(test, ta_name, X_lga_id, ward)
+test <- facility_list[which(is.na(facility_list$community) & str_detect(facility_list$ward, '[/,]') ), c("X_lga_id", "ward")]
+test <- arrange(test, X_lga_id, ward)
 
 str_extract(test$ward, '.+[/,]')
+
+a1 <- str_extract(test$ward, '[a-zA-Z0-9 \')]+[/,]')
+a2 <- str_replace(test$ward, '[a-zA-Z0-9 \')]+[/,]', "")
+
 str_extract(test$ward, '[/]$')
+
+str_extract(test$ward, '.+/.+/')
 
 str_replace(str_extract(test$ward, '[/,].+'), "^[/,]", "")
 str_extract(test$ward, '[:alnum:]$')
@@ -79,15 +85,26 @@ length(which(combined_total$ward==1))
 length(which(combined_total$ward == 0 & combined_total$facility_name > 0.75 & combined_total$match ==1 ))
 length(which(combined_total$ward == 0 & combined_total$facility_name > 0.75))
 
+
+
+
+
+
 ## used to fix ward/community
+# base_line[which(str_detect(base_line$ward, '[0-9]+')),c("ward", "community")]
+# facility_list[which(str_detect(facility_list$ward, '[0-9]+')),c("ward", "community")]
+# 
+# facility_list[which(str_detect(facility_list$ward, '/')),c("ward", "community")]
+facility_list$ward <- str_replace(facility_list$ward, ignore.case("ward"), "")
+
+test <- facility_list[which(is.na(facility_list$community) & str_detect(facility_list$ward, '[/,]') ), c("X_lga_id", "ward")]
 #wrad
-str_trim(str_replace(str_extract(test$ward, '.+[/,]'), "[/,]$", ""))  
+str_trim(str_replace(str_extract(test$ward, '[a-zA-Z0-9 \')]+[/,]'), "[/,]$", ""))
 #comm
-str_trim(str_replace(str_extract(test$ward, '[/,] *[a-zA-Z]+$'), '^[/,]', "")) 
+str_trim(str_replace(test$ward, '[a-zA-Z0-9 \')]+[/,]', ""))
 #pull ward number
-x <- str_extract(faci_test$ward, '[0-9]+')
-x <-x[!is.na(x)]
-y <- str_replace(x, "^0+", "")
+facility_list$ward <- str_trim(facility_list$ward)
+facility_list$ward[which(str_detect(facility_list$ward, '^[0-9]+$'))] <- str_replace(facility_list$ward[which(str_detect(facility_list$ward, '^[0-9]+$'))], "^0+", "")
 
 
 ## character to numeric convert
@@ -98,14 +115,60 @@ sum(is.na(as.numeric(test)))/
     
 sapply(str_extract_all(facility_list$ward[1:5], '[a-zA-Z]'), function(x) paste0(x, collapse=""))
 
-
-write.csv(test, "../../Data Matcher/community_missing.csv")
-which(is.na(base_test$community))
-which(base_test$ward == )
-
-
-
-
+###facility_name
+df <- str_replace_all(df, ignore.case('health|clinic|center|centre|hospital|BASIC|Comprehensive|General|Model|POST|primary|care'), "")
+df <- str_replace_all(df, ignore.case('^(P|B|)HC|^HC.'), "")
+df <- str_replace_all(df, ignore.case('^(P|B|).H.(C.|Clinic.|center.|centre|C.(C.|Clinic.|center.|centre.))'), "")
+df <- str_replace_all(df, ignore.case('(P.H.C)|PHC'), "")
+df <- str_replace_all(df, " ", "")
 
 
-subset(combined_total, unique_name == 0 & facility_name > 0.7 & match == 1)
+# for identify
+tmp[which(str_detect(tmp$facility_name, ignore.case('PRI.+HEALTH'))), "facility_name"]
+tmp[which(str_detect(tmp$facility_name, ignore.case('P.H.C.C'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('P.H.C.+(clinic|centre)|PHC.+(clinic|centre)'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('P(\\.| )H(\\.| )C\\.|pri.+Health.centre'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('B(\\.| )H(\\.| )C\\.|BHC'))), "facility_name"]
+tmp[which(str_detect(tmp$facility_name, ignore.case('m\\.'))), "facility_name"]
+tmp[which(str_detect(tmp$facility_name, ignore.case('(H/(P|post)|HP)'))), "facility_name"]
+tmp[which(str_detect(tmp$facility_name, ignore.case('<(CHC|c.h.c.)>'))), c("facility_name", "facility_type")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('(MCHC|M.c.h.c.)'))), c("facility_name", "facility_type")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('(maternity)'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('hosp\\.'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('/mat(\\.| )'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('hosp/'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('gen.'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('comp(\\.| )'))), c("facility_name")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('h/c |h/c$'))), c("facility_name", "facility_type")]
+tmp[which(str_detect(tmp$facility_name, ignore.case('p h c c'))), c("facility_name", "facility_type")]
+
+
+
+facility_list[which(str_detect(facility_list$facility_name, ignore.case('primary.+health.'))), "facility_name"]
+
+
+# for replacing
+tmp <- facility_list
+tmp$facility_name <- sub('pry.+health.|PRI.+HEALTH',  "Primary Health ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('center', "Centre", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('B(\\.| )H(\\.| )C\\.|BHC', "Basic Health Centre", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('P.H.C.+(clinic|centre)|PHC.+(clinic|centre)', "PHCC", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('p h c c', "PHCC ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('P(\\.| )H(\\.| )C\\.|pri.+Health.centre', "PHC", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('(H/(P|post)|health post|HP)', "Health Post", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('hosp\\.', "Hospital", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('/mat(\\.| |)', "/Maternity ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('hosp/', "Hospital/ ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('gen(\\.| )', "General ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('comp(\\.| )', "Comprehensive ", tmp$facility_name, ignore.case=T)
+tmp$facility_name <- sub('h/c |h/c$', "HC ", tmp$facility_name, ignore.case=T)
+
+
+tmp$facility_name[sample(1:27074,1000)]
+
+tmp$test <- generic_name_remover(tmp$facility_name)
+
+# tmp$facility_name <- str_replace(tmp$facility_name, ignore.case('pry.+health.'), "Primary Health ")
+# tmp$facility_name <- str_replace(tmp$facility_name, ignore.case('center'), "Centre")
+# tmp$facility_name <- str_replace(tmp$facility_name, ignore.case('B(\\.| )H(\\.| )C\\.|BHC'), "Basic Health Centre")
+
