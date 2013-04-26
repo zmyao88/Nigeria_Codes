@@ -102,6 +102,22 @@ facility_list <- subset(facility_list, select=c("lga_id", "ward_name","com_name_
                                                           "health_facility_name", "health_facility_type"))
 names(facility_list) <- names(base_line)
 
+#import edu data
+facility_list <- read.csv("../../FACILITY_LIST_schools.csv", stringsAsFactors = F)
+base_line <- read.csv("../../BASELINE_schools.csv", stringsAsFactors = F)
+
+base_line <- subset(base_line, select=c("X_lga_id", "ward", "community", 
+                                        "school_name", "level_of_education"))
+facility_list <- subset(facility_list, select=c("lga_id", "ward_name", "ward_num", 
+                                                "com_name", "school_name", "level_of_education"))
+
+index <- which(is.na(facility_list$ward_num) & !is.na(facility_list$ward_name))
+
+facility_list$ward_num[index] <- facility_list$ward_name[index]
+rm(index)
+facility_list$ward_name <- NULL
+
+names(facility_list) <- names(base_line)
 
 
 

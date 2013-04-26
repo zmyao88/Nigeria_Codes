@@ -123,6 +123,15 @@ df <- str_replace_all(df, ignore.case('(P.H.C)|PHC'), "")
 df <- str_replace_all(df, " ", "")
 
 
+
+
+
+
+
+#######################
+#####Health############
+#######################
+
 # for identify
 tmp[which(str_detect(tmp$facility_name, ignore.case('PRI.+HEALTH'))), "facility_name"]
 tmp[which(str_detect(tmp$facility_name, ignore.case('P.H.C.C'))), c("facility_name")]
@@ -158,7 +167,7 @@ tmp$facility_name <- sub('P(\\.| )H(\\.| )C\\.|pri.+Health.centre', "PHC", tmp$f
 tmp$facility_name <- sub('(H/(P|post)|health post|HP)', "Health Post", tmp$facility_name, ignore.case=T)
 tmp$facility_name <- sub('hosp\\.', "Hospital", tmp$facility_name, ignore.case=T)
 tmp$facility_name <- sub('/mat(\\.| |)', "/Maternity ", tmp$facility_name, ignore.case=T)
-tmp$facility_name <- sub('hosp/', "Hospital/ ", tmp$facility_name, ignore.case=T)
+tmp$acility_name <- sub('hosp/', "Hospital/ ", tmp$facility_name, ignore.case=T)
 tmp$facility_name <- sub('gen(\\.| )', "General ", tmp$facility_name, ignore.case=T)
 tmp$facility_name <- sub('comp(\\.| )', "Comprehensive ", tmp$facility_name, ignore.case=T)
 tmp$facility_name <- sub('h/c |h/c$', "HC ", tmp$facility_name, ignore.case=T)
@@ -172,3 +181,21 @@ tmp$test <- generic_name_remover(tmp$facility_name)
 # tmp$facility_name <- str_replace(tmp$facility_name, ignore.case('center'), "Centre")
 # tmp$facility_name <- str_replace(tmp$facility_name, ignore.case('B(\\.| )H(\\.| )C\\.|BHC'), "Basic Health Centre")
 
+#######################
+#####Education#########
+#######################
+tmp <- facility_list
+
+
+# for identify
+tmp[which(str_detect(tmp$school_name, 'comm(\\.| )|comm$')), "school_name"]
+tmp[which(str_detect(tmp$school_name, '(sch(\\.| )|sch$)')), "school_name"]
+
+tmp[which(str_detect(tmp$school_name, ignore.case('(sec(\\.| )|sec$)'))), "school_name"]
+tmp[which(str_detect(tmp$school_name, ignore.case('(snr(\\.| )|snr$)'))), "school_name"]
+# for replacing
+
+tmp$school_name <- sub('comm(\\.| )|comm$',  "Community ", tmp$school_name, ignore.case=T)
+tmp$school_name <- sub('(sch(\\.| )|sch$)',  "School ", tmp$school_name, ignore.case=T)
+tmp$school_name <- sub('(sec(\\.| )|sec$)',  "Secondary ", tmp$school_name, ignore.case=T)
+tmp$school_name <- sub('(snr(\\.| )|snr$)',  "Senior ", tmp$school_name, ignore.case=T)
