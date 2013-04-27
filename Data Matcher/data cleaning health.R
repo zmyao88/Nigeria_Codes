@@ -192,10 +192,23 @@ tmp[which(str_detect(tmp$school_name, 'comm(\\.| )|comm$')), "school_name"]
 tmp[which(str_detect(tmp$school_name, '(sch(\\.| )|sch$)')), "school_name"]
 
 tmp[which(str_detect(tmp$school_name, ignore.case('(sec(\\.| )|sec$)'))), "school_name"]
-tmp[which(str_detect(tmp$school_name, ignore.case('(snr(\\.| )|snr$)'))), "school_name"]
-# for replacing
+tmp[which(str_detect(tmp$school_name, ignore.case('(snr(\\.| )|snr$|snr)'))), "school_name"]
+tmp[which(str_detect(tmp$school_name, ignore.case('(pri|pry)(\\.| )'))), c("school_name")]
+tmp[which(str_detect(tmp$school_name, ignore.case('nur/(pri|pry)(.|$)'))), c("school_name")]
+tmp[which(str_detect(tmp$school_name, ignore.case('prim'))), c("school_name")]
+View(tmp[which(str_detect(tmp$school_name, ignore.case('(nur/(pri|pry)(.|$))|N/P(\\.| )'))), c("school_name", "level_of_education")])
 
-tmp$school_name <- sub('comm(\\.| )|comm$',  "Community ", tmp$school_name, ignore.case=T)
-tmp$school_name <- sub('(sch(\\.| )|sch$)',  "School ", tmp$school_name, ignore.case=T)
-tmp$school_name <- sub('(sec(\\.| )|sec$)',  "Secondary ", tmp$school_name, ignore.case=T)
-tmp$school_name <- sub('(snr(\\.| )|snr$)',  "Senior ", tmp$school_name, ignore.case=T)
+
+
+# for replacing
+tmp$school_name <- gsub('comm(\\.| )|comm$',  "Community ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('(sch(\\.| )|sch$)',  "School ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('(sec(\\.| )|sec$)',  "Secondary ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('snr(\\.| )|snr$|snr)',  "Senior ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('(nur/(pri|pry)(.|$))|N/P(\\.| |$)',  "Nursery/Primary ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('(pri|pry|prim)(\\.| )',  "Primary ", tmp$school_name, ignore.case=T)
+tmp$school_name <- gsub('jnr',  "Junior ", tmp$school_name, ignore.case=T)
+
+
+x<- sample(1:78336, 800)
+paste(tmp$school_name[x], tmp$level_of_education[x], sep="****")
