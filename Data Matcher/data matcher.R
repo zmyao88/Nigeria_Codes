@@ -3,7 +3,7 @@ require(RecordLinkage)
 library(ggplot2)
 require(plyr)
 require(stringr)
-
+require(digest)
 base <- read.csv("sample3_BASELINE.csv")
 
 faci <- read.csv("sample3_FACILITY.csv")

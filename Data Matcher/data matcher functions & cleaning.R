@@ -98,8 +98,8 @@ base_line$facility_type <- str_replace(base_line$facility_type, pattern="federal
 
 
 base_line <- subset(base_line, select=c("X_lga_id", "ward","community",  "facility_name", "facility_type"))
-facility_list <- subset(facility_list, select=c("lga_id", "ward_name","com_name_h",  
-                                                          "health_facility_name", "health_facility_type"))
+facility_list <- subset(facility_list, select=c("lga_id", "ward","community",  
+                                                          "facility_name", "facility_type"))
 names(facility_list) <- names(base_line)
 
 #import edu data
@@ -116,6 +116,24 @@ index <- which(is.na(facility_list$ward_num) & !is.na(facility_list$ward_name))
 facility_list$ward_num[index] <- facility_list$ward_name[index]
 rm(index)
 facility_list$ward_name <- NULL
+
+
+# generate long & short ids for each facility & validate
+names(facility_list)
+attach(facility_list)
+facility_list$tmp <- paste0(lga_id, ta_name, school_name, level_of_education, school_managed, 
+                            school_managed_other, ward_num, com_name)
+detach(facility_list)
+facility_list$long_id <- sapply(facility_list$tmp, digest)
+facility_list$short_id <- substr(facility_list$long_id, 5, 10)
+
+test <- ddply(facility_list, .(lga_id), summarise, 
+               unique_id = length(unique(short_id)),
+               unqieu_facility = length(short_id))
+
+which(test$unique_id != test$unqieu_facility)
+
+
 
 names(facility_list) <- names(base_line)
 
@@ -347,7 +365,7 @@ for (i in 1: 20)
 
 ##### Combine the data
 
-combined_total <- rbind(final_5, final_30, final_120, final_570)
+combined_total <- rbind(final_5, final_30, final_120, final_570,final_360)
 sum(combined_total$match == 1)
 
 
