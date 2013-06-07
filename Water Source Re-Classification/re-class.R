@@ -13,6 +13,7 @@ require(randomForest)
 require(lubridate)
 require(data.table)
 require(ggplot2)
+library(ROCR)
 
 time_fixer <- function(var)
 {
@@ -59,24 +60,24 @@ clean(classify_result, "Re_classify",
 
 # Creating Target boolean column for identification of errors
 attach(classify_result)
-classify_result$Target <- 0
+classify_result$Target <- 1
 clean(classify_result, "Target", 
-      which(Re_classify == 'tap'& water_scheme_type == 'outlet'), 1)
+      which(Re_classify == 'tap'& water_scheme_type == 'outlet'), 0)
 
 clean(classify_result, "Target", 
-      which(Re_classify == 'handpump'& (lift_mechanism == 'manual_power' | lift_mechanism == 'hand_pump')), 1)
+      which(Re_classify == 'handpump'& (lift_mechanism == 'manual_power' | lift_mechanism == 'hand_pump')), 0)
 
 clean(classify_result, "Target", 
       which( (Re_classify %in% c('one_thousand_overhead' , 'ten_thousand_overhead') ) & 
-                 water_source_type == 'borehole_tube_well' ), 1)
+                 water_source_type == 'borehole_tube_well' ), 0)
 
 clean(classify_result, "Target", 
       which( (Re_classify == "rainwater" ) & 
-                 water_source_type == 'rainwater_harvesting_scheme' ), 1)
+                 water_source_type == 'rainwater_harvesting_scheme' ), 0)
 
 clean(classify_result, "Target", 
       which( (Re_classify == 'unimproved') & 
-                 water_scheme_type != "outlet" & !(water_source_type %in% c("borehole_tube_well", "rainwater_harvesting_scheme"))), 1)
+                 water_scheme_type != "outlet" & !(water_source_type %in% c("borehole_tube_well", "rainwater_harvesting_scheme"))), 0)
 detach()
 
 
@@ -91,7 +92,7 @@ water_survey$start <- time_fixer(water_survey$start)
 water_survey$end <- time_fixer(water_survey$end)
 
 # Adding new features
-water_survey$dur <- duration(interval(water_survey$start, water_survey$end))
+water_survey$dur <- interval(water_survey$start, water_survey$end) / duration(60, "minutes")
 water_survey$late_night <- (hour(water_survey$end) > 22 | hour(water_survey$end) <5)
 water_survey$weekend <- (wday(water_survey$end) >= 6)
 
@@ -104,8 +105,143 @@ water_final$dur<- as.numeric(water_final$dur)
 
 
 
-# simple viz and tabulation
-ggplot(water_final, aes(factor(Target), dur)) + geom_boxplot()
+water_final$Target <- factor(water_final$Targe)
+
+
+####Adding new features water_shceme_type == 'outlet', 
+# water_final$precise_gps <- ifelse(water_final$X_gps_precision > 5, ">=6",
+#                                 ifelse(water_final$X_gps_precision == 5, "5", 
+#                                           ifelse(water_final$X_gps_precision == 4, "4",
+#                                              ifelse(water_final$X_gps_precision == 3, "3",
+#                                                     ifelse(water_final$X_gps_precision == 2, "2", "<=1")))))
+
+
+water_final$precise_gps <- ifelse(water_final$X_gps_precision > 5, ">5", "<=5")
+water_final$outlet <- water_final$water_scheme_type == "outlet"
+                                         
+                                         
+                                         
+
+
+
+
+############################
+# simple viz and tabulation#
+############################                                         
+err_rt <- ddply(water_final, .(deviceid), summarize, 
+                err_rate = length(which(Target==0))/ length(Target),
+                n_rec = length(Target),
+                n_err = length(which(Target==0)),
+                n_outlet = length(which(water_scheme_type == "outlet")))
+plot(err_rt)
+
+
+
+#jittered point showed someone did game the system by submit water_scheme_type == "outlet"
+ggplot(water_final, aes(Target, water_scheme_type == "outlet")) + geom_jitter(alpha=0.5)
+
+
+#Duraiton of the survey seemed indentical across groups, 
+ggplot(water_final, aes(factor(Target), dur)) + geom_boxplot() + ylim(0,250)
+
+
+ggplot(water_final, aes(dur)) + geom_histogram() + facet_wrap(~Target) 
+ggplot(water_final, aes(dur)) + geom_histogram() + facet_wrap(~Target) +  xlim(0, 5000)
+ggplot(water_final, aes(dur)) + geom_histogram() + facet_wrap(~Target) +  xlim(0, 500)
+ggplot(water_final, aes(dur)) + geom_histogram() + facet_wrap(~Target) +  xlim(0, 50)
+
+ggplot(water_final, aes(dur)) + geom_density() + facet_wrap(~Target) +  xlim(0, 5000)
+ggplot(water_final, aes(dur)) + geom_density() + facet_wrap(~Target) +  xlim(0, 1200)
+ggplot(water_final, aes(dur)) + geom_density() + facet_wrap(~Target) +  xlim(0, 50)
+ggplot(water_final, aes(dur, fill=factor(Target))) + geom_bar(position="identity", alpha=0.5) +  xlim(0, 250)
+# + facet_wrap(~Target) +  xlim(0, 250)
+
+
+
+er <- water_final[water_final$dur >= 250,]
+ggplot(er, aes(dur, fill=factor(Target))) + geom_histogram(alpha=0.5, position="identity")
+table(er$Target)
+
+
+#Checking gps precision 
+plot(X_gps_precision~ Target, data=water_final )
+ggplot(water_final, aes(factor(Target), X_gps_precision)) + geom_jitter(alpha=0.5) + ylim(0,100)
+
+
+
+#NA_counts vs outlet
+ggplot(water_final, aes(water_scheme_type == "outlet", na_count, color=factor(Target))) + geom_jitter(alpha =0.3)
+
+#discrestize duration 
+
+gps <- ddply(water_final, .(Target), summarize, nrec = length(X_gps_precision),
+                                                gps6 = length(which(X_gps_precision > 5)),
+                                                gps5 = length(which(X_gps_precision == 5)),
+                                                gps4 = length(which(X_gps_precision == 4)),
+                                                gps3 = length(which(X_gps_precision == 3)),
+                                                gps2 = length(which(X_gps_precision == 2)),
+                                                gps1 = length(which(X_gps_precision == 1)),
+                                                gps0 = length(which(X_gps_precision <= 0)))
+
+gps <- water_final
+gps$precise <- ifelse(gps$X_gps_precision > 5, ">=6",
+       ifelse(gps$X_gps_precision == 5, "5", 
+              ifelse(gps$X_gps_precision == 4, "4",
+                    ifelse(gps$X_gps_precision == 3, "3",
+                           ifelse(gps$X_gps_precision == 2, "2", "<=1")))))
+
+ggplot(gps, aes(precise, ..count.., fill=factor(Target))) + geom_bar(position='identity', alpha=0.5)
+
+
+View(gps[,3:9]/gps[,2]*100)
+
+names(water_final)
+
+
+
+
+#fit logistic regression
+mod2 <- glm(Target ~ dur + late_night + weekend + na_count + precise_gps + outlet + factor(deviceid), data=water_final,family="binomial")
+summary(mod2)
+mod2
+
+pred_val <- predict(mod2, type="response") > 0.5
+pred_val <- fitted.values(mod2) > 0.5
+
+table(pred_val, water_final[!is.na(water_final$outlet), "Target"]) / 19299
+
+#ROc curve for better evaluation
+pred <- prediction(fitted.values(mod2), water_final[!is.na(water_final$outlet), "Target"])
+perf <- performance(pred, "tpr", "fpr")
+auc_perf <- performance(pred, "auc")
+plot(perf, avg='threshold', colorize=T)
+
+
+
+
+
+
+
+
+
+
+
+
+#fit random forrest
+dat1 <- subset(water_final, select=c("Target","dur", "late_night", "weekend", 'na_count', 'precise_gps', 'outlet', 'deviceid'))
+# dat1 <- dat1[!is.na(dat1$outlet),]
+dat1 <- na.omit(dat1)
+colwise(class)(dat1)
+
+
+mod1 <-randomForest(factor(Target)~dur + late_night + weekend + na_count + precise_gps + outlet, data=dat1,
+                    importance=TRUE,proximity=TRUE)
+
+
+####SVM
+mod3 <- svm(Target~dur + late_night + weekend + na_count + precise_gps + outlet, data=dat1)
+summary(mod3)
+table(predict(mod3), dat1$Target)/19299
 
 
 
@@ -126,16 +262,12 @@ ggplot(water_final, aes(factor(Target), dur)) + geom_boxplot()
 
 water_final$Target
 
-ggplot(water_final, aes(dur, fill=factor(Target))) + geom_histogram()
+
 names(water_final)
 
-mod2 <- glm(Target ~ dur + late_night + weekend + na_count, data=water_final)
-summary(mod2)
-pred_val <- predict(mod2, type="response") > 0.5
-
-table(pred_val, water_final$Target)
 
 
+# write.csv(water_final, 'water_reclassify_master.csv', row.names=F)
 
 ?predict.glm
 mod1 <-randomForest(factor(grade)~word_count2+avg_stnce_lgth+avg_word_length+sentence_count+adj_count+adv_count+to_count+dt_count+in_count, data=dat1,
