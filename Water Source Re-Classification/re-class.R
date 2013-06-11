@@ -16,6 +16,7 @@ require(ggplot2)
 library(ROCR)
 library(glmnet)
 require(boot)
+require(dummies)
 
 time_fixer <- function(var)
 {
@@ -123,9 +124,9 @@ water_final$late_night <- factor(water_final$late_night)
 water_final$weekend <- factor(water_final$weekend)
 water_final$outlet <- factor(water_final$water_scheme_type == "outlet")
                                          
+water_final$dur <- ifelse(water_final$dur < 0, NA, water_final$dur)                                         
                                          
-                                         
-
+rm(re_classify, water_classify, water_survey, classify_result)
 
 
 
@@ -206,29 +207,40 @@ names(water_final)
 
 #fit logistic regression
 train_dat <- subset(water_final, select=c(Target, dur, late_night, weekend, na_count, precise_gps,outlet))
-# train_dat$deviceid <- factor(train_dat$deviceid)
+train_dat <- transform(train_dat, dur = as.numeric(scale(dur,T,T)), na_count = as.numeric(scale(na_count,center=T,scale=T)))
 train_dat <- na.omit(train_dat)
 
 
-sample_vec <- sample(1:19299)
-valid_dat <- train_dat[sample_vec[1:5789],]
-train_dat <- train_dat[sample_vec[5790:19299],]
+sample_vec <- sample(1:19292)
+valid_dat <- train_dat[sample_vec[1:floor(0.3*nrow(train_dat))],]
+train_dat <- train_dat[sample_vec[(floor(0.3*nrow(train_dat)) + 1):19299],]
 
+colwise(class)(train_dat)
 #train logistic
-mod2 <- glm(Target ~ ., data=train_dat, family="binomial")
+mod2 <- glm(Target ~ na_count + factor(outlet) + dur + factor(precise_gps) + 
+                na_count * factor(outlet) , data=train_dat, family=binomial("logit"),)
+
+mod20 <- glm(Target ~ na_count + factor(outlet) + factor(precise_gps) + na_count * factor(outlet) 
+                 ,data=train_dat, family=binomial,)
+
 summary(mod2)
-mod2
+summary(mod20)
+anova(mod20, mod2,test="Chisq")
+#mod2 and mod20 are not very different, discard "dur"
+anova(mod2, test="Chisq")
+drop1(mod2, test='Chisq')
 
-pred_val <- predict(mod2, newdata=valid_dat)
-pred_05 <- pred_val > 0.5
-
-table(pred_05,  valid_dat$Target)/ 5789
+#Suedo R2:
+1 - (mod20$deviance/(mod20$df.residual)) / (mod20$null.deviance/mod20$df.null)
 
 #ROc curve for better evaluation
+pred_val <- predict(mod20, valid_dat)
 pred <- prediction(pred_val, valid_dat$Target)
 perf <- performance(pred, "tpr", "fpr")
 auc_perf <- performance(pred, "auc")
 plot(perf)
+auc_perf
+
 
 ##cv
 cost <- function(r, pi = 0) mean(abs(r-pi) > 0.5)
