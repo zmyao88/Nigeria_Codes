@@ -14,6 +14,8 @@ require(lubridate)
 require(data.table)
 require(ggplot2)
 library(ROCR)
+library(glmnet)
+require(boot)
 
 time_fixer <- function(var)
 {
@@ -116,8 +118,10 @@ water_final$Target <- factor(water_final$Targe)
 #                                                     ifelse(water_final$X_gps_precision == 2, "2", "<=1")))))
 
 
-water_final$precise_gps <- ifelse(water_final$X_gps_precision > 5, ">5", "<=5")
-water_final$outlet <- water_final$water_scheme_type == "outlet"
+water_final$precise_gps <- factor(ifelse(water_final$X_gps_precision > 5, ">5", "<=5"))
+water_final$late_night <- factor(water_final$late_night)
+water_final$weekend <- factor(water_final$weekend)
+water_final$outlet <- factor(water_final$water_scheme_type == "outlet")
                                          
                                          
                                          
@@ -201,23 +205,50 @@ names(water_final)
 
 
 #fit logistic regression
-mod2 <- glm(Target ~ dur + late_night + weekend + na_count + precise_gps + outlet + factor(deviceid), data=water_final,family="binomial")
+train_dat <- subset(water_final, select=c(Target, dur, late_night, weekend, na_count, precise_gps,outlet))
+# train_dat$deviceid <- factor(train_dat$deviceid)
+train_dat <- na.omit(train_dat)
+
+
+sample_vec <- sample(1:19299)
+valid_dat <- train_dat[sample_vec[1:5789],]
+train_dat <- train_dat[sample_vec[5790:19299],]
+
+#train logistic
+mod2 <- glm(Target ~ ., data=train_dat, family="binomial")
 summary(mod2)
 mod2
 
-pred_val <- predict(mod2, type="response") > 0.5
-pred_val <- fitted.values(mod2) > 0.5
+pred_val <- predict(mod2, newdata=valid_dat)
+pred_05 <- pred_val > 0.5
 
-table(pred_val, water_final[!is.na(water_final$outlet), "Target"]) / 19299
+table(pred_05,  valid_dat$Target)/ 5789
 
 #ROc curve for better evaluation
-pred <- prediction(fitted.values(mod2), water_final[!is.na(water_final$outlet), "Target"])
+pred <- prediction(pred_val, valid_dat$Target)
 perf <- performance(pred, "tpr", "fpr")
 auc_perf <- performance(pred, "auc")
-plot(perf, avg='threshold', colorize=T)
+plot(perf)
+
+##cv
+cost <- function(r, pi = 0) mean(abs(r-pi) > 0.5)
+
+cv.err <- cv.glm(train_dat, mod2, cost, K=10)$delta
 
 
+## glmnet logistic
+#some data preparation
+train_dat <- subset(water_final, select=c(Target, dur, late_night, weekend, na_count, precise_gps,outlet))
+train_dat <- na.omit(train_dat)
+y_trb <- water_final$Target
+x_tr <- subset(water_final, select=c(dur, late_night, weekend, na_count, precise_gps,outlet))
 
+# x_tr$deviceid <- factor(x_tr$deviceid)
+
+xplot(x_tr)
+model.matrix()
+
+mod3 <- glmnet(y=y_trb, x=x_tr, family='binomial', standardize=T,alpha=0.25)
 
 
 
