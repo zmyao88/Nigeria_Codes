@@ -17,7 +17,7 @@ library(ROCR)
 library(glmnet)
 require(boot)
 require(dummies)
-
+require(car)
 time_fixer <- function(var)
 {
     result <- ymd_hms(str_extract(var, '^[^+Z]*(T| )[^+Z-]*'))    
@@ -134,12 +134,12 @@ rm(re_classify, water_classify, water_survey, classify_result)
 # simple viz and tabulation#
 ############################                                         
 err_rt <- ddply(water_final, .(deviceid), summarize, 
-                err_rate = length(which(Target==0))/ length(Target),
+                err_rate = length(which(Target==1))/ length(Target),
                 n_rec = length(Target),
-                n_err = length(which(Target==0)),
+                n_err = length(which(Target==1)),
                 n_outlet = length(which(water_scheme_type == "outlet")))
 plot(err_rt)
-
+err_rt <- arrange(err_rt, desc(err_rate))
 
 
 #jittered point showed someone did game the system by submit water_scheme_type == "outlet"
@@ -211,17 +211,18 @@ train_dat <- transform(train_dat, dur = as.numeric(scale(dur,T,T)), na_count = a
 train_dat <- na.omit(train_dat)
 
 
-sample_vec <- sample(1:19292)
+sample_vec <- sample(1:nrow(train_dat))
 valid_dat <- train_dat[sample_vec[1:floor(0.3*nrow(train_dat))],]
-train_dat <- train_dat[sample_vec[(floor(0.3*nrow(train_dat)) + 1):19299],]
+train_dat <- train_dat[sample_vec[(floor(0.3*nrow(train_dat)) + 1):nrow(train_dat)],]
 
 colwise(class)(train_dat)
 #train logistic
 mod2 <- glm(Target ~ na_count + factor(outlet) + dur + factor(precise_gps) + 
-                na_count * factor(outlet) , data=train_dat, family=binomial("logit"),)
+                na_count * factor(outlet) , data=train_dat, family=binomial("logit"))
 
 mod20 <- glm(Target ~ na_count + factor(outlet) + factor(precise_gps) + na_count * factor(outlet) 
                  ,data=train_dat, family=binomial,)
+
 
 summary(mod2)
 summary(mod20)
@@ -233,13 +234,44 @@ drop1(mod2, test='Chisq')
 #Suedo R2:
 1 - (mod20$deviance/(mod20$df.residual)) / (mod20$null.deviance/mod20$df.null)
 
+#testing collinearity, do have some but not severe, 
+vif(mod2)
+
+#checking the outlier/ leverage
+lvg_idx<- which(abs(as.numeric(scale(mod2$residuals,T,T))) >5)
+#refit with all leverage point bumped out, which improved the model fitting a little bit
+mod2_lvg <- update(mod2,data=train_dat[-lvg_idx,])
+
+
+
+
 #ROc curve for better evaluation
-pred_val <- predict(mod20, valid_dat)
+pred_val <- predict(mod2_lvg, valid_dat)
 pred <- prediction(pred_val, valid_dat$Target)
 perf <- performance(pred, "tpr", "fpr")
 auc_perf <- performance(pred, "auc")
 plot(perf)
 auc_perf
+
+
+
+
+
+#####Visualize ta's outlet pattern
+err_rt <- err_rt[err_rt$n_rec >= 15,]
+err_rt <- arrange(err_rt, desc(err_rate))
+ta_list <- data.frame(deviceid=head(err_rt$deviceid,130))
+
+viz <- merge(water_final[,c("Target", "outlet", "deviceid", "end")], ta_list)
+viz <- viz[viz$end > ymd('2012-01-01'),]
+ggplot(viz) + geom_line(aes(x=end, y=as.numeric(outlet)-1), color="black",, alpha=0.3) + 
+    geom_point(aes(x=end, y=as.numeric(outlet)-1, color=Target) ,alpha=0.3) + facet_wrap(~deviceid)
+# + 
+#     geom_point(aes(x=end, y=as.numeric(Target)-1), color="red", alpha=0.3) + facet_wrap(~deviceid)
+
+
+# ggplot(viz) + geom_jitter(aes(x=end, y=as.numeric(outlet)-1), color="black", alpha=0.3) + facet_wrap(~deviceid)
+
 
 
 ##cv
